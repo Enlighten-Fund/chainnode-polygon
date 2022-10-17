@@ -1314,9 +1314,10 @@ func applyMessage(
 ) error {
 	// Create a new context to be used in the EVM environment
 	blockContext := core.NewEVMBlockContext(header, chainContext, &header.Coinbase)
+
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
-	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, state, chainConfig, vm.Config{})
+	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, state, chainConfig, vm.Config{Debug: true, Tracer: vm.GlobalParityLogger})
 	// Apply the transaction to the current state (included in the env)
 	_, _, err := vmenv.Call(
 		vm.AccountRef(msg.From()),
