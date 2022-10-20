@@ -19,6 +19,8 @@ package core
 import (
 	"fmt"
 	"math/big"
+	"strconv"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -57,6 +59,9 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
 func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg vm.Config) (types.Receipts, []*types.Log, uint64, error) {
+	defer func(start time.Time) {
+		fmt.Printf("Execution state_process, block_number = %v ,cost time = %v\n", strconv.FormatUint(block.NumberU64(), 10), time.Since(start))
+	}(time.Now())
 	var (
 		receipts    types.Receipts
 		usedGas     = new(uint64)
