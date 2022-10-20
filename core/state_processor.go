@@ -61,13 +61,13 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 // transactions failed to execute due to insufficient gas it will return an error.
 func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg vm.Config) (types.Receipts, []*types.Log, uint64, error) {
 	defer func(start time.Time) {
-		fmt.Printf("Execution state_process, block_number = %v ,cost time = %v\n", strconv.FormatUint(block.NumberU64(), 10), time.Since(start))
+		fmt.Printf("Execution state_process, block_number = %v ,cost time = %v, txn number = %v\n", strconv.FormatUint(block.NumberU64(), 10), time.Since(start), len(block.Transactions()))
 		f, err := os.OpenFile("/home/yangdong/seqno.txt", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 		if err != nil {
 			panic(err)
 		}
 		defer f.Close()
-		fmt.Fprintf(f, "%v %v\n", strconv.FormatUint(block.NumberU64(), 10), time.Since(start))
+		fmt.Fprintf(f, "%v %v %v\n", strconv.FormatUint(block.NumberU64(), 10), time.Since(start), len(block.Transactions()))
 	}(time.Now())
 	var (
 		receipts    types.Receipts
