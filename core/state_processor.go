@@ -67,7 +67,11 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 			panic(err)
 		}
 		defer f.Close()
-		fmt.Fprintf(f, "%v %v %v\n", strconv.FormatUint(block.NumberU64(), 10), time.Since(start), len(block.Transactions()))
+		fmt.Fprintf(f, "%v %v %v", strconv.FormatUint(block.NumberU64(), 10), time.Since(start), len(block.Transactions()))
+		for _, txn := range block.Transactions() {
+			fmt.Fprintf(f, " %v", txn.Hash())
+		}
+		fmt.Fprintf(f, "\n")
 	}(time.Now())
 	var (
 		receipts    types.Receipts
@@ -95,6 +99,12 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		if err != nil {
 			return nil, nil, 0, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 		}
+		f, err := os.OpenFile("/home/yangdong/events.txt", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+		fmt.Fprintf(f, "%v %v %v\n", tx.Hash(), len(receipt.Logs), receipt.Bloom)
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
 	}
