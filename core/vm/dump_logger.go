@@ -26,9 +26,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 func getFile(taskName string, blockNumber uint64, perFolder, perFile uint64) (*os.File, error) {
@@ -208,15 +208,6 @@ func (l *ParityLogger) CaptureEnter(typ OpCode, from common.Address, to common.A
 	l.stack = append(l.stack, newItem)
 }
 
-func (l *ParityLogger) isPrecompiled(addr common.Address) bool {
-	for _, p := range l.activePrecompiles {
-		if p == addr {
-			return true
-		}
-	}
-	return false
-}
-
 func (l *ParityLogger) CaptureExit(output []byte, gasUsed uint64, err error) {
 	current := l.stack[len(l.stack)-1]
 	current.Result.GasUsed = hexutil.Uint64(gasUsed)
@@ -225,15 +216,6 @@ func (l *ParityLogger) CaptureExit(output []byte, gasUsed uint64, err error) {
 		current.Error = err.Error()
 	}
 	l.stack = l.stack[0 : len(l.stack)-1]
-
-	// remove precompiled call
-	if l.isPrecompiled(current.Action.To) {
-		s := len(l.items)
-		l.items = l.items[0 : s-1]
-		if s > 1 {
-			l.items[s-2].Subtraces -= 1
-		}
-	}
 }
 
 func ReceiptDumpLogger(blockNumber uint64, perFolder, perFile uint64, receipts types.Receipts) error {
