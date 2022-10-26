@@ -19,6 +19,7 @@ package core
 import (
 	"fmt"
 	"math/big"
+	"sort"
 	"strconv"
 	"time"
 
@@ -131,6 +132,33 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles())
 	vm.ReceiptDumpLogger(block.NumberU64(), 10000, 100, receipts)
+
+	// feat(trace): Check whether state sync happens.
+	// Have to hardcode bor.config.Sprint (i.e. 64), since that config is out of scope now.
+	if block.NumberU64()%64 == 0 {
+		blockLogs := statedb.Logs()
+		if len(blockLogs) > 0 {
+			sort.SliceStable(blockLogs, func(i, j int) bool {
+				return blockLogs[i].Index < blockLogs[j].Index
+			})
+			if len(blockLogs) > len(allLogs) {
+				stateSyncLogs := blockLogs[len(allLogs):] // get state-sync logs from `state.Logs()`
+				// State sync logs don't have tx index, tx hash and other necessary fields
+				// DeriveFieldsForBorLogs will fill those fields for websocket subscriptions
+				types.DeriveFieldsForBorLogs(stateSyncLogs, block.Hash(), block.NumberU64(), uint(len(receipts)), uint(len(allLogs)))
+				index := len(block.Transactions())
+				txHash := types.GetDerivedBorTxHash(types.BorReceiptKey(block.NumberU64(), block.Hash()))
+				fmt.Printf(
+					"Dump state sync txn %v: block number = %v, num_logs = %v",
+					txHash.Hex(), strconv.FormatUint(block.NumberU64(), 10), len(stateSyncLogs),
+				)
+				if err := txLogger.DumpStateSyncTxn(index, txHash); err != nil {
+					return nil, nil, 0, fmt.Errorf("could not dump state sync tx %d [%v] logger: %w", index, txHash.Hex(), err)
+				}
+				vm.StateSyncReceiptDumpLogger(block.NumberU64(), 10000, 100, stateSyncLogs)
+			}
+		}
+	}
 
 	return receipts, allLogs, *usedGas, nil
 }

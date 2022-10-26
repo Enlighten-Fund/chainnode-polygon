@@ -231,10 +231,34 @@ func ReceiptDumpLogger(blockNumber uint64, perFolder, perFile uint64, receipts t
 	encoder := json.NewEncoder(sb)
 	for _, receipt := range receipts {
 		for _, log := range receipt.Logs {
+			log.BlockNumber = blockNumber
 			err := encoder.Encode(log)
 			if err != nil {
 				return fmt.Errorf("encode log failed: %w", err)
 			}
+		}
+	}
+	if _, err := file.WriteString(sb.String()); err != nil {
+		return err
+	}
+	return nil
+}
+
+func StateSyncReceiptDumpLogger(blockNumber, perFolder, perFile uint64, stateSyncLogs []*types.Log) error {
+	defer func(start time.Time) {
+		fmt.Printf("Dump state sync receipt, block_number = %v ,cost time = %v\n", strconv.FormatUint(blockNumber, 10), time.Since(start))
+	}(time.Now())
+	file, err := getFile("receipts", blockNumber, perFolder, perFile)
+	if err != nil {
+		return err
+	}
+
+	sb := &strings.Builder{}
+	encoder := json.NewEncoder(sb)
+	for _, log := range stateSyncLogs {
+		err := encoder.Encode(log)
+		if err != nil {
+			return fmt.Errorf("encode log failed: %w", err)
 		}
 	}
 	if _, err := file.WriteString(sb.String()); err != nil {
@@ -302,6 +326,33 @@ func (t *TxLogger) Dump(index int, tx *types.Transaction, receipt *types.Receipt
 	}
 	if err := t.encoder.Encode(entry); err != nil {
 		return fmt.Errorf("failed to encode transaction entry %w", err)
+	}
+	return nil
+}
+
+func (t *TxLogger) DumpStateSyncTxn(index int, txHash common.Hash) error {
+	entry := map[string]interface{}{
+		"blockNumber":       t.blockNumber,
+		"blockHash":         t.blockHash,
+		"transactionIndex":  index,
+		"transactionHash":   txHash,
+		"from":              common.Address{},
+		"to":                common.Address{},
+		"gas":               0,
+		"gasUsed":           0,
+		"gasPrice":          0,
+		"data":              []byte{},
+		"accessList":        nil,
+		"nonce":             0,
+		"gasFeeCap":         0,
+		"gasTipCap":         0,
+		"effectiveGasPrice": hexutil.Uint64(0),
+		"type":              0,
+		"value":             0,
+		"status":            1,
+	}
+	if err := t.encoder.Encode(entry); err != nil {
+		return fmt.Errorf("failed to encode state sync transaction entry %w", err)
 	}
 	return nil
 }

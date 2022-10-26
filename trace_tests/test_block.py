@@ -6,12 +6,15 @@ import base64
 from collections import Counter
 
 DATA_DIR = Path("/data_ssd/yangdong/node")
-LOG_RANGE = list(range(30000, 30010)) + list(range(42200, 42210))
+# LOG_RANGE = list(range(43267, 43287))
+# LOG_RANGE = list(range(17237, 17257))
+# LOG_RANGE = list(range(20700, 20710))
+LOG_RANGE = list(range(20710, 20800))
 URL = "https://polygon-mainnet.infura.io/v3/295cce92179b4be498665b1b16dfee34"
 
+total_txn, total_log = 0, 0
 for logno in LOG_RANGE:
     unseen_txns = {}
-    # block_base_fee = {}
     with open(DATA_DIR / "blocks" / f"{logno // 100}" / f"{logno}.log") as f:
         for i in tqdm(range(100)):
             line = f.readline()
@@ -41,17 +44,25 @@ for logno in LOG_RANGE:
             
             for txn in result["transactions"]:
                 unseen_txns[txn["hash"]] = txn
-            # block_base_fee[blockno] = result["baseFeePerGas"]
         print(f"ok. Verified 100 BLOCK info in {logno}.log")
     txn_num = len(unseen_txns)
+
+    dumped_logs = {}
+    with open(DATA_DIR / "receipts" / f"{logno // 100}" / f"{logno}.log") as f:
+        for line in f:
+            rec = json.loads(line)
+            key = (rec["blockNumber"], rec["logIndex"])
+            assert key not in dumped_logs, f"Duplicate log: key={key}, log={rec}"
+            dumped_logs[key] = rec
+
     with open(DATA_DIR / "transactions" / f"{logno // 100}" / f"{logno}.log") as f:
-        ct = 0
+        ct, cl = 0, 0
         typ = []
         for line in tqdm(f):
             ct += 1
             rec = json.loads(line)
             txn = rec["transactionHash"]
-            assert txn in unseen_txns, f"ERROR: txn not seen in any blocks: {txn}"
+            assert txn in unseen_txns, f"ERROR: txn is not dumped: {txn}"
             result = unseen_txns.pop(txn)
             assert rec["accessList"] is None
             assert rec["blockHash"] == result["blockHash"]
@@ -59,9 +70,7 @@ for logno in LOG_RANGE:
             assert "0x" + base64.b64decode(rec["data"]).hex() == result["input"]
             assert rec["from"] == result["from"]
             assert rec["gas"] == int(result["gas"], 16)
-            # assert rec["gasUsed"] == int(result["gas"], 16)
             assert rec["nonce"] == int(result["nonce"], 16)
-            # assert rec["status"] == 
             assert rec["to"] == result["to"]
             assert rec["transactionHash"] == result["hash"]
             assert rec["transactionIndex"] == int(result["transactionIndex"], 16)
@@ -78,5 +87,37 @@ for logno in LOG_RANGE:
             else:
                 assert False, f"Unseen transaction type {rec['type']}"
             typ.append(rec["type"])
+
+            payload = {
+                "jsonrpc": "2.0",
+                "method":"eth_getTransactionReceipt",
+                "params": [txn],
+                "id": "1",
+            }
+            response = requests.post(URL, json=payload).json()
+            assert response["jsonrpc"] == "2.0", f"{response}"
+            assert int(response["id"]) == 1, f"{response}"
+            result = response["result"]
+            assert rec["gasUsed"] == int(result["gasUsed"], 16)
+            assert rec["status"] == int(result["status"], 16)
+            cl += len(result["logs"])
+            for log in result["logs"]:
+                nkey = (log["blockNumber"], log["logIndex"])
+                assert nkey in dumped_logs, f"Log not found: key={nkey}, log={log}"
+                dlog = dumped_logs.pop(nkey)
+                assert dlog["address"] == log["address"]
+                assert dlog["topics"] == log["topics"]
+                assert dlog["data"] == log["data"]
+                assert dlog["blockNumber"] == log["blockNumber"]
+                assert dlog["transactionHash"] == log["transactionHash"]
+                assert dlog["transactionIndex"] == log["transactionIndex"]
+                assert dlog["blockHash"] == log["blockHash"]
+                assert dlog["logIndex"] == log["logIndex"]
+                assert dlog["removed"] == log["removed"]
         print(f"ok. Verified {ct} TRANSACTION info in {logno}.log. Txn types cnt: {Counter(typ)}")
-    assert len(unseen_txns) == 0, f"ERROR: not all txns are covered: {unseen_txns.keys()}"
+        print(f"ok. Verified {cl} LOGS        info in {logno}.log.")
+    assert len(unseen_txns) == 0, f"ERROR: not all dumped txns are valid: {unseen_txns.keys()}"
+    assert len(dumped_logs) == 0, f"ERROR: not all dumped logs are valid: {dumped_logs.keys()}"
+    total_txn += txn_num
+    total_log += cl
+print(f"OK! Verified {len(LOG_RANGE)} blocks, {total_txn} txns, and {total_log} logs in total!")
