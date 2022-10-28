@@ -78,7 +78,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		BlockHash:   block.Hash(),
 		BlockNumber: block.NumberU64(),
 	}
-	tracer, err := vm.NewParityLogger(&parityLogContext, block.NumberU64(), 10000, 100)
+	tracer, err := vm.NewParityLogger(&parityLogContext, block.NumberU64(), 10000, 100, false)
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("create parity logger failed: %w", err)
 	}
@@ -129,6 +129,12 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		allLogs = append(allLogs, receipt.Logs...)
 	}
 	fmt.Printf("Dump transaction, block_number = %v ,cost time = %v\n", strconv.FormatUint(block.NumberU64(), 10), totalts.Seconds())
+
+	stateSyncTxHash := types.GetDerivedBorTxHash(types.BorReceiptKey(block.NumberU64(), block.Hash()))
+	vm.ParityLogContextForStateSync = parityLogContext
+	vm.ParityLogContextForStateSync.TxPos = len(block.Transactions())
+	vm.ParityLogContextForStateSync.TxHash = stateSyncTxHash
+
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles())
 	vm.ReceiptDumpLogger(block.NumberU64(), 10000, 100, receipts)
@@ -147,13 +153,12 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 				// DeriveFieldsForBorLogs will fill those fields for websocket subscriptions
 				types.DeriveFieldsForBorLogs(stateSyncLogs, block.Hash(), block.NumberU64(), uint(len(receipts)), uint(len(allLogs)))
 				index := len(block.Transactions())
-				txHash := types.GetDerivedBorTxHash(types.BorReceiptKey(block.NumberU64(), block.Hash()))
 				fmt.Printf(
 					"Dump state sync txn %v: block number = %v, num_logs = %v",
-					txHash.Hex(), strconv.FormatUint(block.NumberU64(), 10), len(stateSyncLogs),
+					stateSyncTxHash.Hex(), strconv.FormatUint(block.NumberU64(), 10), len(stateSyncLogs),
 				)
-				if err := txLogger.DumpStateSyncTxn(index, txHash); err != nil {
-					return nil, nil, 0, fmt.Errorf("could not dump state sync tx %d [%v] logger: %w", index, txHash.Hex(), err)
+				if err := txLogger.DumpStateSyncTxn(index, stateSyncTxHash); err != nil {
+					return nil, nil, 0, fmt.Errorf("could not dump state sync tx %d [%v] logger: %w", index, stateSyncTxHash.Hex(), err)
 				}
 				vm.StateSyncReceiptDumpLogger(block.NumberU64(), 10000, 100, stateSyncLogs)
 			}

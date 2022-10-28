@@ -96,10 +96,17 @@ type ParityLogger struct {
 	items             []*ParityTraceItem
 }
 
+// A hack to dump state sync txn trace
+var ParityLogContextForStateSync ParityLogContext
+
 // NewParityLogger creates a new EVM tracer that prints execution steps as parity trace format
 // into the provided stream.
-func NewParityLogger(ctx *ParityLogContext, blockNumber uint64, perFolder, perFile uint64) (*ParityLogger, error) {
-	file, err := getFile("traces", blockNumber, perFolder, perFile)
+func NewParityLogger(ctx *ParityLogContext, blockNumber uint64, perFolder, perFile uint64, isStateSync bool) (*ParityLogger, error) {
+	dir := "traces"
+	if isStateSync {
+		dir = "traces_state_sync"
+	}
+	file, err := getFile(dir, blockNumber, perFolder, perFile)
 	if err != nil {
 		return nil, err
 	}

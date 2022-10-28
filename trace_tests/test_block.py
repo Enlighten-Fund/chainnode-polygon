@@ -9,7 +9,9 @@ DATA_DIR = Path("/data_ssd/yangdong/node")
 # LOG_RANGE = list(range(43267, 43287))
 # LOG_RANGE = list(range(17237, 17257))
 # LOG_RANGE = list(range(20700, 20710))
-LOG_RANGE = list(range(20710, 20800))
+# LOG_RANGE = list(range(20710, 20800))
+# LOG_RANGE = list(range(21449, 21662))
+LOG_RANGE = list(range(138000, 138030))
 URL = "https://polygon-mainnet.infura.io/v3/295cce92179b4be498665b1b16dfee34"
 
 total_txn, total_log = 0, 0
