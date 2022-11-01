@@ -137,7 +137,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles())
-	vm.ReceiptDumpLogger(block.NumberU64(), 100000, 1000, receipts)
+	receiptsToDump := receipts
 
 	// feat(trace): Check whether state sync happens.
 	// Have to hardcode bor.config.Sprint (i.e. 64), since that config is out of scope now.
@@ -161,11 +161,12 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 					return nil, nil, 0, fmt.Errorf("could not dump state sync tx %d [%v] logger: %w", index, stateSyncTxHash.Hex(), err)
 				}
 				stateSyncReceipt := &types.Receipt{Logs: stateSyncLogs}
-				vm.ReceiptDumpLogger(block.NumberU64(), 100000, 1000, types.Receipts{stateSyncReceipt})
+				receiptsToDump = append(append(types.Receipts{}, receipts...), stateSyncReceipt)
 			}
 		}
 	}
 
+	vm.ReceiptDumpLogger(block.NumberU64(), 100000, 1000, receiptsToDump)
 	return receipts, allLogs, *usedGas, nil
 }
 
