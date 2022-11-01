@@ -72,17 +72,18 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		allLogs     []*types.Log
 		gp          = new(GasPool).AddGas(block.GasLimit())
 	)
-	vm.BlockDumpLogger(block, 10000, 100)
+	vm.BlockDumpLogger(block, 100000, 1000)
 
 	parityLogContext := vm.ParityLogContext{
 		BlockHash:   block.Hash(),
 		BlockNumber: block.NumberU64(),
 	}
-	tracer, err := vm.NewParityLogger(&parityLogContext, block.NumberU64(), 10000, 100, false)
+	tracer, err := vm.NewParityLogger(&parityLogContext, block.NumberU64(), 100000, 1000)
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("create parity logger failed: %w", err)
 	}
 	defer tracer.Close()
+	vm.GlobalParityLogger = tracer
 	cfg.Debug = true
 	cfg.Tracer = tracer
 
@@ -91,7 +92,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		p.config.IsLondon(blockNumber),
 		header.BaseFee,
 		block.Hash(),
-		block.NumberU64(), 10000, 100)
+		block.NumberU64(), 100000, 1000)
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("create tx logger failed: %w", err)
 	}
@@ -131,13 +132,12 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	fmt.Printf("Dump transaction, block_number = %v ,cost time = %v\n", strconv.FormatUint(block.NumberU64(), 10), totalts.Seconds())
 
 	stateSyncTxHash := types.GetDerivedBorTxHash(types.BorReceiptKey(block.NumberU64(), block.Hash()))
-	vm.ParityLogContextForStateSync = parityLogContext
-	vm.ParityLogContextForStateSync.TxPos = len(block.Transactions())
-	vm.ParityLogContextForStateSync.TxHash = stateSyncTxHash
+	parityLogContext.TxPos = len(block.Transactions())
+	parityLogContext.TxHash = stateSyncTxHash
 
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles())
-	vm.ReceiptDumpLogger(block.NumberU64(), 10000, 100, receipts)
+	vm.ReceiptDumpLogger(block.NumberU64(), 100000, 1000, receipts)
 
 	// feat(trace): Check whether state sync happens.
 	// Have to hardcode bor.config.Sprint (i.e. 64), since that config is out of scope now.
@@ -160,7 +160,8 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 				if err := txLogger.DumpStateSyncTxn(index, stateSyncTxHash); err != nil {
 					return nil, nil, 0, fmt.Errorf("could not dump state sync tx %d [%v] logger: %w", index, stateSyncTxHash.Hex(), err)
 				}
-				vm.StateSyncReceiptDumpLogger(block.NumberU64(), 10000, 100, stateSyncLogs)
+				stateSyncReceipt := &types.Receipt{Logs: stateSyncLogs}
+				vm.ReceiptDumpLogger(block.NumberU64(), 100000, 1000, types.Receipts{stateSyncReceipt})
 			}
 		}
 	}

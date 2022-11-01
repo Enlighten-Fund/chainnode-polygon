@@ -97,16 +97,12 @@ type ParityLogger struct {
 }
 
 // A hack to dump state sync txn trace
-var ParityLogContextForStateSync ParityLogContext
+var GlobalParityLogger *ParityLogger
 
 // NewParityLogger creates a new EVM tracer that prints execution steps as parity trace format
 // into the provided stream.
-func NewParityLogger(ctx *ParityLogContext, blockNumber uint64, perFolder, perFile uint64, isStateSync bool) (*ParityLogger, error) {
-	dir := "traces"
-	if isStateSync {
-		dir = "traces_state_sync"
-	}
-	file, err := getFile(dir, blockNumber, perFolder, perFile)
+func NewParityLogger(ctx *ParityLogContext, blockNumber uint64, perFolder, perFile uint64) (*ParityLogger, error) {
+	file, err := getFile("traces", blockNumber, perFolder, perFile)
 	if err != nil {
 		return nil, err
 	}
@@ -243,29 +239,6 @@ func ReceiptDumpLogger(blockNumber uint64, perFolder, perFile uint64, receipts t
 			if err != nil {
 				return fmt.Errorf("encode log failed: %w", err)
 			}
-		}
-	}
-	if _, err := file.WriteString(sb.String()); err != nil {
-		return err
-	}
-	return nil
-}
-
-func StateSyncReceiptDumpLogger(blockNumber, perFolder, perFile uint64, stateSyncLogs []*types.Log) error {
-	defer func(start time.Time) {
-		fmt.Printf("Dump state sync receipt, block_number = %v ,cost time = %v\n", strconv.FormatUint(blockNumber, 10), time.Since(start))
-	}(time.Now())
-	file, err := getFile("receipts", blockNumber, perFolder, perFile)
-	if err != nil {
-		return err
-	}
-
-	sb := &strings.Builder{}
-	encoder := json.NewEncoder(sb)
-	for _, log := range stateSyncLogs {
-		err := encoder.Encode(log)
-		if err != nil {
-			return fmt.Errorf("encode log failed: %w", err)
 		}
 	}
 	if _, err := file.WriteString(sb.String()); err != nil {

@@ -5,23 +5,26 @@ from tqdm import tqdm
 import base64
 from collections import Counter
 
+PER_DIR = 100000
+PER_FILE = 1000
+FILE_PER_DIR = PER_DIR // PER_FILE
+
 DATA_DIR = Path("/data_ssd/yangdong/node")
-# LOG_RANGE = list(range(43267, 43287))
-# LOG_RANGE = list(range(17237, 17257))
-# LOG_RANGE = list(range(20700, 20710))
-# LOG_RANGE = list(range(20710, 20800))
-# LOG_RANGE = list(range(21449, 21662))
-LOG_RANGE = list(range(138000, 138030))
-URL = "https://polygon-mainnet.infura.io/v3/295cce92179b4be498665b1b16dfee34"
+LOG_RANGE = list(range(13929, 13932))
+URL = "http://localhost:8545"
+# "https://polygon-mainnet.infura.io/v3/295cce92179b4be498665b1b16dfee34"
 
 total_txn, total_log = 0, 0
 for logno in LOG_RANGE:
     unseen_txns = {}
-    with open(DATA_DIR / "blocks" / f"{logno // 100}" / f"{logno}.log") as f:
-        for i in tqdm(range(100)):
-            line = f.readline()
+    with open(DATA_DIR / "blocks" / f"{logno // FILE_PER_DIR}" / f"{logno}.log") as f:
+        data = {}
+        for line in f:
             rec = json.loads(line)
-            blockno = logno * 100 + i
+            data[rec["blockNumber"]] = rec
+
+        for i in tqdm(range(PER_FILE)):
+            blockno = logno * PER_FILE + i
             payload = {
                 "jsonrpc": "2.0",
                 "method":"eth_getBlockByNumber",
@@ -32,6 +35,12 @@ for logno in LOG_RANGE:
             assert response["jsonrpc"] == "2.0", f"{response}"
             assert int(response["id"]) == blockno, f"{response}"
             result = response["result"]
+
+            if blockno not in data:
+                print(f"Warning: block #{blockno} is missing")
+                assert len(result["transactions"]) == 0
+                continue
+            rec = data[blockno]
             # check all 10 dumped fields
             assert result["hash"] == rec["blockHash"]
             assert int(result["number"], 16) == blockno and blockno == rec["blockNumber"]
@@ -46,7 +55,7 @@ for logno in LOG_RANGE:
             
             for txn in result["transactions"]:
                 unseen_txns[txn["hash"]] = txn
-        print(f"ok. Verified 100 BLOCK info in {logno}.log")
+        print(f"ok. Verified {PER_FILE} BLOCK info in {logno}.log")
     txn_num = len(unseen_txns)
 
     dumped_logs = {}
@@ -122,4 +131,4 @@ for logno in LOG_RANGE:
     assert len(dumped_logs) == 0, f"ERROR: not all dumped logs are valid: {dumped_logs.keys()}"
     total_txn += txn_num
     total_log += cl
-print(f"OK! Verified {len(LOG_RANGE)} blocks, {total_txn} txns, and {total_log} logs in total!")
+print(f"OK! Verified {len(LOG_RANGE)*PER_FILE} blocks, {total_txn} txns, and {total_log} logs in total!")

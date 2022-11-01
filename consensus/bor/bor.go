@@ -1315,14 +1315,9 @@ func applyMessage(
 	// Create a new context to be used in the EVM environment
 	blockContext := core.NewEVMBlockContext(header, chainContext, &header.Coinbase)
 
-	tracer, terr := vm.NewParityLogger(&vm.ParityLogContextForStateSync, vm.ParityLogContextForStateSync.BlockNumber, 10000, 100, true)
-	if terr != nil {
-		return terr
-	}
-	defer tracer.Close()
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
-	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, state, chainConfig, vm.Config{Debug: true, Tracer: tracer})
+	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, state, chainConfig, vm.Config{Debug: true, Tracer: vm.GlobalParityLogger})
 	// Apply the transaction to the current state (included in the env)
 	_, _, err := vmenv.Call(
 		vm.AccountRef(msg.From()),

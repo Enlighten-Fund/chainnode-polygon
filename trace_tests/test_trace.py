@@ -1,6 +1,9 @@
 import json
 import os
 
+PER_DIR = 100000
+PER_FILE = 1000
+FILE_PER_DIR = PER_DIR // PER_FILE
 DIR = "/home/yangdong/chainnode-polygon/trace_tests/geth_traces"
 files = os.listdir(DIR)
 for fc, fname in enumerate(files):
@@ -43,7 +46,7 @@ for fc, fname in enumerate(files):
     blockno, txhash = fname[:-5].split("_")
     blockno = int(blockno)
 
-    with open(f"/home/yangdong/node/traces/{blockno//10000}/{blockno//100}.log") as f:
+    with open(f"/home/yangdong/node/traces/{blockno//PER_DIR}/{blockno//PER_FILE}.log") as f:
         traces = [json.loads(line) for line in f]
         txtraces = list(filter(lambda x: x["transactionHash"] == txhash, traces))
 
