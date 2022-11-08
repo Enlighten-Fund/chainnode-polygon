@@ -10,7 +10,7 @@ PER_FILE = 1000
 FILE_PER_DIR = PER_DIR // PER_FILE
 
 DATA_DIR = Path("/data_ssd/yangdong/node")
-LOG_RANGE = list(range(13929, 13932))
+LOG_RANGE = list(range(14045, 14055))
 URL = "http://localhost:8545"
 # "https://polygon-mainnet.infura.io/v3/295cce92179b4be498665b1b16dfee34"
 
