@@ -116,6 +116,9 @@ func NewParityLogger(ctx *ParityLogContext, blockNumber uint64, perFolder, perFi
 }
 
 func (l *ParityLogger) Close() error {
+	defer func(start time.Time) {
+		fmt.Printf("Write traces to file. Cost time = %v\n", time.Since(start))
+	}(time.Now())
 	if _, err := l.file.WriteString(l.sb.String()); err != nil {
 		return err
 	}
@@ -338,6 +341,9 @@ func (t *TxLogger) DumpStateSyncTxn(index int, txHash common.Hash) error {
 }
 
 func (t *TxLogger) Close() error {
+	defer func(start time.Time) {
+		fmt.Printf("Write transactions to file. Cost time = %v\n", time.Since(start))
+	}(time.Now())
 	if _, err := t.file.WriteString(t.sb.String()); err != nil {
 		return err
 	}
