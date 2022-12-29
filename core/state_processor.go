@@ -82,6 +82,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("create parity logger failed: %w", err)
 	}
+	defer tracer.Close()
 	vm.GlobalParityLogger = tracer
 	cfg.Debug = true
 	cfg.Tracer = tracer
@@ -95,6 +96,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("create tx logger failed: %w", err)
 	}
+	defer txLogger.Close()
 
 	// Mutate the block and state according to any hard-fork specs
 	if p.config.DAOForkSupport && p.config.DAOForkBlock != nil && p.config.DAOForkBlock.Cmp(block.Number()) == 0 {
@@ -165,7 +167,6 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	}
 
 	vm.ReceiptDumpLogger(block.NumberU64(), 100000, 1000, receiptsToDump)
-	vm.TryClearBuffer(block.NumberU64())
 	return receipts, allLogs, *usedGas, nil
 }
 
